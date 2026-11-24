@@ -1,0 +1,18 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/room/room"
+  ],
+  "window": {
+    "navigationBarTitleText": "MovieGacha",
+    "navigationBarBackgroundColor": "@backgroundColor",
+    "navigationBarTextStyle": "@navigationTextStyle",
+    "backgroundColor": "@backgroundColor",
+    "backgroundTextStyle": "@backgroundTextStyle"
+  },
+  "style": "v2",
+  "resizable": true,
+  "darkmode": true,
+  "themeLocation": "theme.json",
+  "sitemapLocation": "sitemap.json"
+}

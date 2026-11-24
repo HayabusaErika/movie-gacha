@@ -1,0 +1,243 @@
+<template name="poster">
+  <view class="poster-card {{selected ? 'is-selected' : ''}}" style="background: {{color}}" data-id="{{id}}" bindtap="openDetail" role="button" aria-label="展开《{{title}}》">
+    <image wx:if="{{posterSrc}}" class="stack-backdrop" src="{{posterSrc}}" mode="aspectFill" aria-hidden="{{true}}" />
+    <view class="poster-fallback"><text>{{initial}}</text></view>
+    <image wx:if="{{posterSrc}}" class="stack-image" src="{{posterSrc}}" mode="aspectFit" lazy-load="{{true}}" data-id="{{id}}" data-src="{{posterSrc}}" binderror="onPosterError" />
+    <view class="poster-shade"></view>
+    <view class="poster-heading">
+      <text class="poster-title">{{title}}</text>
+      <view class="poster-indicators">
+        <text wx:if="{{count > 1}}" class="copy-count">×{{count}}</text>
+        <text class="poster-rating">★ {{rating}}</text>
+        <button wx:if="{{owned && pickingForNfc}}" size="mini" class="poster-select {{selected ? 'selected' : ''}}" data-id="{{id}}" catchtap="togglePosterSelect" aria-label="{{selected ? '取消选择' : '选中交换'}}《{{title}}》">{{selected ? '✓ 已选中' : '选中交换'}}</button>
+      </view>
+    </view>
+    <view class="poster-footer">
+      <view class="poster-description">
+        <text class="poster-meta">{{metaLine}}</text>
+        <text wx:if="{{director}}" class="poster-director">{{director}}</text>
+      </view>
+      <text class="expand-mark">↗</text>
+    </view>
+  </view>
+</template>
+
+<template name="ticket-front">
+  <view class="ticket-art" data-id="{{card.id}}" bindtap="startReviewEdit" role="button" aria-label="翻面写影评">
+    <image wx:if="{{card.posterSrc}}" class="ticket-art-background" src="{{card.posterSrc}}" mode="aspectFill" aria-hidden="{{true}}" />
+    <view class="poster-fallback"><text>{{card.initial}}</text></view>
+    <image wx:if="{{card.posterSrc}}" class="ticket-poster" src="{{card.posterSrc}}" mode="aspectFit" data-id="{{card.id}}" data-src="{{card.posterSrc}}" binderror="onPosterError" />
+  </view>
+  <view class="ticket-stub">
+    <view class="ticket-title-row">
+      <text class="ticket-title">{{card.title}}</text>
+      <text class="ticket-rating">★ {{card.rating}}</text>
+    </view>
+    <text class="ticket-meta">{{card.metaLine}}{{card.director ? ' · ' + card.director : ''}}</text>
+    <text class="ticket-intro-label">{{card.introLabel}}</text>
+    <text class="ticket-intro">{{card.intro}}</text>
+    <text wx:if="{{card.review}}" class="ticket-quote">{{card.reviewLabel}} · {{card.review}}</text>
+  </view>
+  <view class="ticket-perforation"><view class="ticket-notch left"></view><view class="ticket-notch right"></view></view>
+  <view class="ticket-footer">
+    <view class="ticket-barcode" aria-hidden="{{true}}"></view>
+    <button size="mini" class="ticket-flip-button" bindtap="startReviewEdit">翻面写影评 <text>↻</text></button>
+  </view>
+</template>
+
+<view class="app-layout" style="height: {{windowHeight}}px; --poster-height: {{posterHeight}}px; --stack-step: {{stackStep}}px">
+<view class="page">
+  <view class="topbar">
+    <text class="h1">我的电影</text>
+    <view class="top-actions">
+      <button size="mini" class="icon-button add-button" bindtap="openImport" aria-label="添加电影">＋</button>
+      <button size="mini" class="icon-button menu-button" bindtap="openMenu" aria-label="管理收藏">•••</button>
+    </view>
+  </view>
+
+  <view class="wallet-toolbar">
+    <view class="tabs" role="tablist">
+      <button size="mini" class="tab {{activeTab === 'collection' ? 'active' : ''}}" data-tab="collection" bindtap="switchTab" role="tab" aria-selected="{{activeTab === 'collection'}}">收藏 <text class="tab-count">{{ownedTotal}}</text></button>
+      <button size="mini" class="tab {{activeTab === 'daily' ? 'active' : ''}}" data-tab="daily" bindtap="switchTab" role="tab" aria-selected="{{activeTab === 'daily'}}">今日推荐</button>
+    </view>
+    <view wx:if="{{activeTab === 'collection'}}" class="search-box">
+      <text class="search-icon"></text>
+      <input class="wallet-search" placeholder="搜索片名、导演、类型" value="{{query}}" bindinput="onSearch" confirm-type="search" aria-label="搜索收藏" />
+    </view>
+    <text wx:else class="daily-note">{{dailyNote}}</text>
+  </view>
+
+  <scroll-view class="wallet-scroll" scroll-y="{{(isWide || !detailOpen) && !drawOverlay && !importOpen && !tradeOpen}}" enhanced="{{true}}" show-scrollbar="{{false}}">
+    <view class="wallet-content">
+      <view wx:if="{{activeTab === 'collection'}}" class="poster-stack">
+        <view wx:for="{{cards}}" wx:key="id" class="poster-slot">
+          <template is="poster" data="{{...item, pickingForNfc: nfcSelection}}" />
+        </view>
+        <view wx:if="{{!cards.length}}" class="empty-state">
+          <text class="empty-title">{{ownedTotal ? '没有找到这部电影' : '收藏你的第一部电影'}}</text>
+          <text class="empty-copy">{{ownedTotal ? '试试其他关键词' : '还没有收藏' }}</text>
+          <button size="mini" wx:if="{{!ownedTotal}}" class="btn primary" bindtap="showDaily">看看今日推荐</button>
+        </view>
+      </view>
+      <view wx:else class="poster-stack">
+        <view wx:for="{{dailyList}}" wx:key="id" class="poster-slot">
+          <template is="poster" data="{{...item, pickingForNfc: nfcSelection}}" />
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="bottom-bar">
+    <button size="mini" class="draw-button" disabled="{{drawDisabled}}" bindtap="drawOne">
+      <view class="dock-label"><text>{{drawDisabled ? '今天抽完了' : '抽一张'}}</text><text class="dock-note">{{'剩 ' + drawLeft + ' 次'}}</text></view>
+    </button>
+    <button wx:if="{{!nfcSelection}}" size="mini" class="room-dock-button" bindtap="openRoom">放映室</button>
+    <block wx:else>
+      <button size="mini" class="room-dock-button" disabled="{{!selectedCount}}" bindtap="openTrade">交换 · {{selectedCount}} / 3</button>
+      <button size="mini" class="btn ghost exit-selection" bindtap="exitNfcSelection">取消</button>
+    </block>
+  </view>
+</view>
+
+<!-- 票根正面展示电影，背面书写和保存观后感。 -->
+<view wx:if="{{detailOpen}}" class="detail-screen">
+  <view class="detail-toolbar">
+    <button size="mini" class="icon-button close-button" bindtap="closeDetail" aria-label="收起电影">×</button>
+    <view class="detail-actions">
+      <button size="mini" wx:if="{{detailCard.owned && nfcSelection}}" class="select-button {{detailSelected ? 'selected' : ''}}" bindtap="toggleDetailSelect">{{detailSelected ? '✓ 已选中' : '选中交换'}}</button>
+      <text wx:elif="{{!detailCard.owned}}" class="detail-context">{{detailDaily ? '今日推荐' : '电影详情'}}</text>
+      <button size="mini" wx:if="{{nfcSelection && selectedCount}}" class="detail-trade-button" bindtap="openTrade">交换 {{selectedCount}} 部</button>
+    </view>
+  </view>
+  <scroll-view class="detail-scroll" scroll-y="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}">
+    <view class="detail-content">
+      <view class="movie-ticket {{ticketFlipped ? 'flipped' : ''}}" style="{{detailCard.themeStyle}}">
+        <view class="ticket-face ticket-front" aria-hidden="{{ticketFlipped}}">
+          <template is="ticket-front" data="{{card: detailCard}}" />
+        </view>
+        <view class="ticket-face ticket-back" aria-hidden="{{!ticketFlipped}}">
+          <view class="ticket-back-heading">
+            <text class="ticket-back-label">我的观后感</text>
+            <text class="ticket-back-title">{{detailCard.title}}</text>
+            <text class="ticket-back-meta">{{detailCard.metaLine}}</text>
+          </view>
+          <view class="ticket-perforation"><view class="ticket-notch left"></view><view class="ticket-notch right"></view></view>
+          <view class="ticket-writing">
+            <block wx:if="{{ticketFlipped && editingReview}}">
+              <textarea class="ticket-review-input" value="{{detailReview}}" maxlength="80" bindinput="onReviewInput" placeholder="这一场电影，留下了什么？" focus="{{reviewFocus}}" cursor-spacing="24" adjust-position="{{true}}" show-confirm-bar="{{false}}" />
+              <text class="ticket-review-counter">{{detailReviewLength}} / 80</text>
+              <view class="ticket-review-actions">
+                <button size="mini" class="ticket-cancel-button" bindtap="cancelReviewEdit">取消</button>
+                <button size="mini" class="ticket-save-button" bindtap="saveReview">保存影评</button>
+              </view>
+            </block>
+            <block wx:elif="{{ticketFlipped}}">
+              <text class="ticket-saved-review">{{detailReview || '还没有写下观后感。'}}</text>
+              <button size="mini" class="ticket-edit-button" bindtap="startReviewEdit">编辑影评</button>
+              <button size="mini" class="ticket-return-button" bindtap="showTicketFront">↻ 返回正面</button>
+            </block>
+          </view>
+        </view>
+      </view>
+      <button size="mini" wx:if="{{detailDaily}}" class="btn primary take-button" disabled="{{!!dailyTaken}}" data-id="{{detailCard.id}}" bindtap="takeDaily">{{dailyTaken === detailCard.id ? '已收下这部电影' : (dailyTaken ? '今天已收下一部' : '收下这部电影')}}</button>
+      <text wx:elif="{{detailCard.count > 1}}" class="detail-owned">已收藏 {{detailCard.count}} 张</text>
+    </view>
+  </scroll-view>
+</view>
+
+<view wx:if="{{isWide && !detailOpen}}" class="detail-placeholder"><text>选择一部电影，展开海报与短评。</text></view>
+</view>
+
+<!-- 抽卡 -->
+<view wx:if="{{drawOverlay}}" class="overlay" catchtap="closeDraw" catchtouchmove="noop">
+  <view class="draw-box" catchtap="noop">
+    <view class="flip {{revealed ? 'revealed' : ''}}">
+      <view class="face back">
+        <text class="back-mark">?</text>
+        <text class="back-sub">电影盲盒</text>
+      </view>
+      <view class="face front draw-ticket-front" style="{{drawCard.themeStyle}}">
+        <template is="ticket-front" data="{{card: drawCard}}" />
+      </view>
+    </view>
+    <text class="draw-hint">{{drawHint}}</text>
+    <view class="modal-actions">
+      <button size="mini" class="btn ghost" disabled="{{drawDisabled}}" bindtap="drawAgain">再抽一张</button>
+      <button size="mini" class="btn primary" bindtap="openDrawDetail">展开电影</button>
+      <button size="mini" class="btn ghost" bindtap="closeDraw">完成</button>
+    </view>
+  </view>
+</view>
+
+<!-- 手动添加 -->
+<view wx:if="{{importOpen}}" class="overlay" catchtap="closeImport">
+  <view class="modal" catchtap="noop">
+    <text class="modal-title">添加看过的电影</text>
+    <input class="search" placeholder="豆瓣链接或条目 ID" value="{{importValue}}" bindinput="onImportInput" />
+    <text class="status">{{importStatus}}</text>
+    <view class="modal-actions">
+      <view class="btn ghost" bindtap="closeImport">取消</view>
+      <view class="btn primary" bindtap="doImport">添加</view>
+    </view>
+  </view>
+</view>
+
+<!-- 碰一碰 -->
+<view wx:if="{{tradeOpen}}" class="overlay" catchtap="closeTrade">
+  <view class="modal trade-modal" catchtap="noop">
+    <text class="modal-title">碰一碰交换</text>
+
+    <view class="trade-section">
+      <text class="col-title">你换出的票根</text>
+      <scroll-view class="mini-row" scroll-x="{{true}}" enable-flex="{{true}}">
+        <view wx:for="{{myOffer}}" wx:key="id" class="mini-pass" style="--pass-color: {{item.color}}">
+          <view class="mini-poster">
+            <view class="fallback small"><text>{{item.initial}}</text></view>
+            <image wx:if="{{item.posterSrc}}" class="mini-img" src="{{item.posterSrc}}" mode="aspectFill" data-id="{{item.id}}" data-src="{{item.posterSrc}}" binderror="onPosterError" />
+          </view>
+          <text class="mini-title">{{item.title}}</text>
+          <text wx:if="{{item.review}}" class="mini-review">“{{item.review}}”</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="trade-center">
+      <view class="nfc {{nfcActive ? 'active' : ''}}">
+        <view class="ring"></view>
+        <view class="ring"></view>
+        <view class="nfc-core">NFC</view>
+      </view>
+      <text class="nfc-text">{{nfcText}}</text>
+
+      <view class="nfc-actions">
+        <view wx:if="{{broadcastSupported && !broadcastOn && !pendingExchange}}" class="btn ghost small {{nfcActive ? 'disabled' : ''}}" bindtap="startBroadcast">出示票根</view>
+        <view wx:elif="{{broadcastOn}}" class="btn ghost small" bindtap="stopBroadcast">停止出示</view>
+
+        <view wx:if="{{!readingOn && !pendingExchange}}" class="btn ghost small {{nfcActive ? 'disabled' : ''}}" bindtap="startReading">读取对方</view>
+        <view wx:elif="{{readingOn}}" class="btn ghost small" bindtap="stopReading">停止读卡</view>
+        <view wx:if="{{!pendingExchange && !broadcastOn && !readingOn}}" class="btn ghost small {{nfcActive ? 'disabled' : ''}}" bindtap="simulateTap">模拟碰一碰</view>
+      </view>
+      <text wx:if="{{nfcHint}}" class="hint small">{{nfcHint}}</text>
+    </view>
+
+    <view class="trade-section">
+      <text class="col-title">对方的票根</text>
+      <scroll-view class="mini-row" scroll-x="{{true}}" enable-flex="{{true}}">
+        <view wx:for="{{peerOffer}}" wx:key="id" class="mini-pass" style="--pass-color: {{item.color}}">
+          <view class="mini-poster">
+            <view class="fallback small"><text>{{item.initial}}</text></view>
+            <image wx:if="{{item.posterSrc}}" class="mini-img" src="{{item.posterSrc}}" mode="aspectFill" data-id="{{item.id}}" data-src="{{item.posterSrc}}" binderror="onPosterError" />
+          </view>
+          <text class="mini-title">{{item.title}}</text>
+          <text wx:if="{{item.review}}" class="mini-review">“{{item.review}}”</text>
+        </view>
+        <text wx:if="{{!peerOffer.length}}" class="muted">等待读取…</text>
+      </scroll-view>
+    </view>
+
+    <view class="modal-actions">
+      <view class="btn ghost" bindtap="closeTrade">取消</view>
+      <view class="btn primary {{canDeal && !nfcActive ? '' : 'disabled'}}" bindtap="acceptTrade">{{pendingExchange ? '继续确认' : (simulatedTrade ? '接受模拟交换' : '确认交换')}}</view>
+    </view>
+  </view>
+</view>

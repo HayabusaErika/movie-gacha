@@ -1,0 +1,10 @@
+.DS_Store
+node_modules/
+*.pyc
+__pycache__/
+data/movies.jsonl
+data/movies.csv
+miniprogram/project.private.config.json
+miniprogram/preview-qr.*
+.env
+.env.*

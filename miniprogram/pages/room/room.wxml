@@ -1,0 +1,115 @@
+<view class="room-page">
+
+  <!-- 大厅 -->
+  <view wx:if="{{mode === 'lobby'}}" class="lobby">
+    <text class="lobby-title">放映室</text>
+
+    <view class="field-row">
+      <input class="field" type="nickname" maxlength="20" placeholder="昵称"
+             value="{{nick}}" bindinput="onNickInput" />
+      <button size="mini" class="mini-button" bindtap="useWechatNick">用微信昵称</button>
+    </view>
+
+    <view class="field-row">
+      <input class="field code-input" maxlength="6" placeholder="6 位邀请码"
+             value="{{codeInput}}" bindinput="onCodeInput" />
+      <button size="mini" class="mini-button" bindtap="scanCode">扫码</button>
+    </view>
+
+    <button size="mini" class="primary-button wide" loading="{{busy}}" bindtap="joinRoom">进入房间</button>
+    <view class="divider"><text>或</text></view>
+    <button size="mini" class="ghost-button wide" loading="{{busy}}" bindtap="createRoom">创建房间</button>
+    <text wx:if="{{error}}" class="error-text">{{error}}</text>
+  </view>
+
+  <!-- 房间 -->
+  <view wx:else class="room">
+    <view class="room-head">
+      <view class="room-title-group">
+        <text class="room-title">{{room.title}}</text>
+        <text class="room-code" bindtap="copyCode">邀请码 {{room.code}}</text>
+      </view>
+      <view class="room-tools">
+        <button size="mini" class="primary-button" open-type="share">邀请好友</button>
+        <button size="mini" class="ghost-button" bindtap="showQr">二维码</button>
+      </view>
+    </view>
+
+    <scroll-view class="member-row" scroll-x="{{true}}" enable-flex="{{true}}">
+      <view class="member-list">
+        <view wx:for="{{members}}" wx:key="openid" class="member-chip">{{item.nick}}</view>
+      </view>
+    </scroll-view>
+
+    <view class="room-actions">
+      <button size="mini" class="primary-button" loading="{{drawing}}" bindtap="drawInRoom">抽一张</button>
+      <button size="mini" class="ghost-button" bindtap="openAddPicker">从收藏加片</button>
+    </view>
+
+    <view class="wall">
+      <view wx:for="{{films}}" wx:key="key" class="film-card">
+        <view class="film-poster-box">
+          <image wx:if="{{item.poster}}" class="film-poster" src="{{item.poster}}" mode="aspectFill" />
+          <view wx:else class="film-poster fallback"><text>{{item.initial}}</text></view>
+          <text class="film-rating">★ {{item.rating}}</text>
+        </view>
+        <view class="film-body">
+          <text class="film-title">{{item.title}}</text>
+          <text class="film-meta">{{item.metaLine}}</text>
+          <text class="film-by">{{item.addedByName}} · {{item.sourceLabel}}</text>
+          <text wx:if="{{item.review}}" class="film-review">“{{item.review}}”</text>
+        </view>
+      </view>
+      <text wx:if="{{!hasFilms}}" class="empty-state">还没有电影</text>
+    </view>
+
+    <button size="mini" class="leave-button" bindtap="leaveRoom">离开房间</button>
+  </view>
+</view>
+
+<!-- 邀请二维码 -->
+<view wx:if="{{qrOpen}}" class="overlay" catchtap="closeQr">
+  <view class="modal" catchtap="noop">
+    <text class="modal-title">邀请朋友</text>
+    <text class="hint">邀请码 {{room.code}}</text>
+    <view class="qr-box"><canvas type="2d" id="qrCanvas" class="qr-canvas"></canvas></view>
+    <text class="hint">在放映室点「扫码」</text>
+    <text wx:if="{{qrError}}" class="hint">{{qrError}}</text>
+    <view class="modal-actions">
+      <button size="mini" class="ghost-button" bindtap="copyCode">复制邀请码</button>
+      <button size="mini" class="primary-button" bindtap="closeQr">完成</button>
+    </view>
+  </view>
+</view>
+
+<!-- 从收藏加片 -->
+<view wx:if="{{addOpen}}" class="overlay" catchtap="closeAddPicker">
+  <view class="modal add-modal" catchtap="noop">
+    <text class="modal-title">从收藏加片</text>
+    <scroll-view class="owned-list" scroll-y="{{true}}">
+      <view wx:for="{{ownedList}}" wx:key="id"
+            class="owned-item {{picked && picked.id === item.id ? 'picked' : ''}}"
+            data-id="{{item.id}}" bindtap="pickFilm">
+        <image wx:if="{{item.poster}}" class="owned-poster" src="{{item.poster}}" mode="aspectFill" />
+        <view wx:else class="owned-poster fallback"><text>{{item.initial}}</text></view>
+        <view class="owned-info">
+          <text class="owned-title">{{item.title}}</text>
+          <text class="owned-meta">{{item.metaLine}}</text>
+          <text wx:if="{{item.inRoom}}" class="owned-flag">已在房间</text>
+        </view>
+      </view>
+      <text wx:if="{{!hasOwned}}" class="empty-state">收藏里还没有电影</text>
+    </scroll-view>
+
+    <block wx:if="{{picked}}">
+      <textarea class="review-input" maxlength="80" value="{{addReview}}" bindinput="onAddReview"
+                placeholder="推荐语（选填）" />
+    </block>
+    <text wx:if="{{addStatus}}" class="error-text">{{addStatus}}</text>
+
+    <view class="modal-actions">
+      <button size="mini" class="ghost-button" bindtap="closeAddPicker">取消</button>
+      <button size="mini" class="primary-button {{picked ? '' : 'disabled'}}" loading="{{addBusy}}" bindtap="submitAdd">放进房间</button>
+    </view>
+  </view>
+</view>
